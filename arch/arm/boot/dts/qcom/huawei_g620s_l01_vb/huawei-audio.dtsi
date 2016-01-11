@@ -1,16 +1,13 @@
-&soc {
-
-	sound {
-		qcom,msm-hs-micbias-type = "external";
-		qcom,audio-routing =
-				"RX_BIAS", "MCLK",
-				"SPK_RX_BIAS", "MCLK",
-				"INT_LDO_H", "MCLK",
-				"MIC BIAS External", "Handset Mic",
-				"MIC BIAS External2", "Headset Mic",
-				"MIC BIAS External", "Secondary Mic",
-				"AMIC1", "MIC BIAS External",
-				"AMIC2", "MIC BIAS External2",
-				"AMIC3", "MIC BIAS External";
-	};
+/ {
+    huawei_audio_info {
+        compatible = "huawei,hw_audio_info";
+        product-identifier = "g620s_ul";
+        builtin-master-mic-exist;
+        builtin-2nd-mic-exist;
+        hand_held_dual_mic_strategy;
+        status = "ok";
+        aud_param_ver = "g620s_ul_audio_C02";
+        loud_speaker_master_mic_strategy;
+        product-btsco-nrec-adapt;
+    };
 };

@@ -381,7 +381,6 @@
 	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
 
 	qcom,nonremovable;
-	qcom,wakeup-on-idle;
 
 	status = "ok";
 };
@@ -478,8 +477,7 @@
 	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
 	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
 	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
-	qcom,mdss-dsi-pan-enable-dynamic-fps;
-	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode";
+	qcom,cont-splash-enabled;
 };
 
 &dsi_nt35590_720_vid {
@@ -487,9 +485,8 @@
 	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
 	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
 	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
+	qcom,cont-splash-enabled;
 	qcom,esd-check-enabled;
-	qcom,mdss-dsi-pan-enable-dynamic-fps;
-	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode";
 };
 
 &dsi_nt35590_720_cmd {
@@ -497,6 +494,7 @@
 	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
 	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
 	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
+	qcom,cont-splash-enabled;
 	qcom,esd-check-enabled;
 };
 
@@ -580,73 +578,6 @@
 				qcom,mode-ctrl = <0x60>;
 			};
 		};
-
-		qcom,leds@a300 {
-			status = "okay";
-			qcom,led_mpp_4 {
-				label = "mpp";
-				linux,name = "green";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <40>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "lpg";
-				qcom,source-sel = <8>;
-				qcom,mode-ctrl = <0x60>;
-				qcom,pwm-channel = <0>;
-				qcom,start-idx = <1>;
-				qcom,duty-pcts = [00 00 00 00 64
-						 64 00 00 00 00];
-			};
-		};
-
-		qcom,leds@a500 {
-			status = "okay";
-			qcom,led_mpp_6 {
-				label = "mpp";
-				linux,name = "red";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <40>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode-ctrl = <0x60>;
-				qcom,source-sel = <10>;
-				qcom,mode = "lpg";
-				qcom,pwm-channel = <5>;
-				qcom,start-idx = <1>;
-				qcom,duty-pcts = [00 00 00 00 64
-						 64 00 00 00 00];
-			};
-		};
-	};
-};
-
-	qcom,pm8916@1 {
-                qcom,leds@d300 {
-                        status = "okay";
-                };
-
-		qcom,leds@d800 {
-			status = "okay";
-			qcom,wled_0 {
-				label = "wled";
-				linux,name = "wled:backlight";
-				linux,default-trigger = "bkl-trigger";
-				qcom,cs-out-en;
-				qcom,op-fdbck = <1>;
-				qcom,default-state = "on";
-				qcom,max-current = <25>;
-				qcom,ctrl-delay-us = <0>;
-				qcom,boost-curr-lim = <3>;
-				qcom,cp-sel = <0>;
-				qcom,switch-freq = <2>;
-				qcom,ovp-val = <0>;
-				qcom,num-strings = <1>;
-				qcom,id = <0>;
-			};
-		};
 	};
 };
 
@@ -676,26 +607,6 @@
 			status = "okay";
 			qcom,vib-timeout-ms = <15000>;
 			qcom,vib-vtg-level-mV = <3100>;
-		};
-	};
-};
-
-&spmi_bus {
-	qcom,pm8916@0 {
-		qcom,leds@a100 {
-			status = "okay";
-			qcom,led_mpp_2 {
-				label = "mpp";
-				linux,name = "button-backlight";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <40>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "manual";
-				qcom,source-sel = <1>;
-				qcom,mode-ctrl = <0x60>;
-			};
 		};
 	};
 };
