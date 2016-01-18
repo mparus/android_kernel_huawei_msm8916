@@ -19,6 +19,8 @@
 #ifndef _PN547_H_
 #define _PN547_H_
 
+#define PN547_DRV_NAME      "pn547"
+
 #define PN544_MAGIC 0xE9
 
 /*
