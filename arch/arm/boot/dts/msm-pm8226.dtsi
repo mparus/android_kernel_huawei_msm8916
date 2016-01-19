@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,7 +22,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		pm8226_revid: qcom,revid@100 {
+		qcom,revid@100 {
 			compatible = "qcom,qpnp-revid";
 			reg = <0x100 0x100>;
 		};
@@ -39,7 +39,6 @@
 			qcom,pon-dbc-delay = <15625>;
 			qcom,system-reset;
 			qcom,s3-debounce = <32>;
-			qcom,s3-src = "kpdpwr-and-resin";
 
 			qcom,pon_1 {
 				qcom,pon-type = <0>;
@@ -49,7 +48,11 @@
 
 			qcom,pon_2 {
 				qcom,pon-type = <1>;
+				qcom,support-reset = <1>;
 				qcom,pull-up = <1>;
+				qcom,s1-timer = <0>;
+				qcom,s2-timer = <2000>;
+				qcom,s2-type = <1>;
 				linux,code = <114>;
 			};
 
@@ -60,13 +63,7 @@
 				qcom,s1-timer = <6720>;
 				qcom,s2-timer = <2000>;
 				qcom,s2-type = <7>;
-				qcom,use-bark;
 			};
-		};
-
-		pm8226_misc: qcom,misc@900 {
-			compatible = "qcom,qpnp-misc";
-			reg = <0x900 0x100>;
 		};
 
 		pm8226_chg: qcom,charger {
@@ -88,7 +85,6 @@
 			qcom,tchg-mins = <150>;
 			qcom,chg-vadc = <&pm8226_vadc>;
 			qcom,chg-adc_tm = <&pm8226_adc_tm>;
-			qcom,pmic-revid = <&pm8226_revid>;
 			qcom,ibatmax-warm-ma = <350>;
 			qcom,warm-bat-decidegc = <450>;
 			qcom,warm-bat-mv = <4100>;
@@ -138,7 +134,7 @@
 							"vdd-loop";
 			};
 
-			pm8226_chg_batif: qcom,bat-if@1200 {
+			qcom,bat-if@1200 {
 				status = "disabled";
 				reg = <0x1200 0x100>;
 				interrupts =	<0x0 0x12 0x0>,
@@ -196,28 +192,23 @@
 			qcom,v-cutoff-uv = <3400000>;
 			qcom,max-voltage-uv = <4200000>;
 			qcom,r-conn-mohm = <0>;
-			qcom,shutdown-soc-valid-limit = <100>;
+			qcom,shutdown-soc-valid-limit = <20>;
 			qcom,adjust-soc-low-threshold = <15>;
 			qcom,ocv-voltage-high-threshold-uv = <3750000>;
 			qcom,ocv-voltage-low-threshold-uv = <3650000>;
 			qcom,low-soc-calculate-soc-threshold = <15>;
-			qcom,low-voltage-calculate-soc-ms = <1000>;
 			qcom,low-soc-calculate-soc-ms = <5000>;
 			qcom,calculate-soc-ms = <20000>;
 			qcom,chg-term-ua = <100000>;
 			qcom,batt-type = <0>;
 			qcom,tm-temp-margin = <5000>;
 			qcom,low-ocv-correction-limit-uv = <100>;
-			qcom,high-ocv-correction-limit-uv = <250>;
+			qcom,high-ocv-correction-limit-uv = <50>;
 			qcom,hold-soc-est = <3>;
 			qcom,low-voltage-threshold = <3420000>;
 			qcom,bms-vadc = <&pm8226_vadc>;
 			qcom,bms-iadc = <&pm8226_iadc>;
 			qcom,bms-adc_tm = <&pm8226_adc_tm>;
-
-			qcom,batt-pres-status@1208 {
-				reg = <0x1208 0x1>;
-			};
 
 			qcom,bms-iadc@3800 {
 				reg = <0x3800 0x100>;
@@ -373,7 +364,6 @@
 			qcom,adc-bit-resolution = <15>;
 			qcom,adc-vdd-reference = <1800>;
 			qcom,vadc-poll-eoc;
-			qcom,pmic-revid = <&pm8226_revid>;
 
 			chan@8 {
 				label = "die_temp";
@@ -422,9 +412,7 @@
 
 		pm8226_iadc: iadc@3600 {
 			compatible = "qcom,qpnp-iadc";
-			reg = <0x3600 0x100>,
-			      <0x12f1 0x1>;
-			reg-names = "iadc-base", "batt-id-trim-cnst-rds";
+			reg = <0x3600 0x100>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0x0 0x36 0x0>;
@@ -433,22 +421,10 @@
 			qcom,adc-vdd-reference = <1800>;
 			qcom,iadc-vadc = <&pm8226_vadc>;
 			qcom,iadc-poll-eoc;
-			qcom,pmic-revid = <&pm8226_revid>;
-			qcom,use-default-rds-trim = <2>;
 
 			chan@0 {
 				label = "internal_rsense";
 				reg = <0>;
-				qcom,decimation = <0>;
-				qcom,pre-div-channel-scaling = <1>;
-				qcom,calibration-type = "absolute";
-				qcom,scale-function = <0>;
-				qcom,hw-settle-time = <0>;
-				qcom,fast-avg-setup = <0>;
-			};
-			chan@1 {
-				label = "external_rsense";
-				reg = <1>;
 				qcom,decimation = <0>;
 				qcom,pre-div-channel-scaling = <1>;
 				qcom,calibration-type = "absolute";
@@ -789,14 +765,12 @@
 			label = "wled";
 		};
 
-		pm8226_pwm_1: pwm@b100 {
+		pwm@b100 {
 			compatible = "qcom,qpnp-pwm";
 			reg = <0xb100 0x100>,
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <0>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <0>;
 		};
 
 		pwm@b200 {
@@ -805,8 +779,6 @@
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <1>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <1>;
 		};
 
 		pwm@b300 {
@@ -815,8 +787,6 @@
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <2>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <2>;
 		};
 
 		pwm@b400 {
@@ -825,8 +795,6 @@
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <3>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <3>;
 		};
 
 		pwm@b500 {
@@ -835,18 +803,14 @@
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <4>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <4>;
 		};
 
-		pm8226_pwm_6: pwm@b600 {
+		pwm@b600 {
 			compatible = "qcom,qpnp-pwm";
 			reg = <0xb600 0x100>,
 			      <0xb042 0x7e>;
 			reg-names = "qpnp-lpg-channel-base", "qpnp-lpg-lut-base";
 			qcom,channel-id = <5>;
-			qcom,supported-sizes = <6>, <7>, <9>;
-			qcom,ramp-index = <5>;
 		};
 
 		regulator@8000 {
@@ -872,10 +836,10 @@
 			pm8226_flash0: qcom,flash_0 {
 				qcom,max-current = <1000>;
 				qcom,default-state = "off";
-				qcom,headroom = <3>;
+				qcom,headroom = <0>;
 				qcom,duration = <1280>;
 				qcom,clamp-curr = <200>;
-				qcom,startup-dly = <3>;
+				qcom,startup-dly = <1>;
 				qcom,safety-timer;
 				label = "flash";
 				linux,default-trigger =
@@ -885,18 +849,21 @@
 				qcom,current = <625>;
 			};
 
-			pm8226_torch: qcom,flash_torch {
-				qcom,max-current = <200>;
+			pm8226_flash1: qcom,flash_1 {
+				qcom,max-current = <1000>;
 				qcom,default-state = "off";
+				qcom,headroom = <0>;
+				qcom,duration = <1280>;
+				qcom,clamp-curr = <200>;
+				qcom,startup-dly = <1>;
+				qcom,safety-timer;
 				linux,default-trigger =
-						"torch_trigger";
+						"flash1_trigger";
 				label = "flash";
-				qcom,id = <1>;
-				linux,name = "led:flash_torch";
-				qcom,current = <120>;
-				qcom,torch-enable;
-				qcom,duration = <12>;
+				qcom,id = <2>;
+				linux,name = "led:flash_1";
+				qcom,current = <625>;
 			};
-                };
+		};
 	};
 };

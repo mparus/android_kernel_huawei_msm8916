@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10,11 +10,17 @@
  * GNU General Public License for more details.
  */
 
-#include "msm8226-camera-sensor-cdp.dtsi"
+/include/ "dsi-panel-nt35590-720p-video.dtsi"
+/include/ "msm8226-camera-sensor-mtp.dtsi"
 
 &soc {
 	serial@f991f000 {
 		status = "ok";
+	};
+
+	qcom,mdss_dsi_nt35590_720p_video {
+		status = "ok";
+		qcom,cont-splash-enabled;
 	};
 
 	i2c@f9927000 { /* BLSP1 QUP5 */
@@ -27,11 +33,9 @@
 			vcc_i2c-supply = <&pm8226_lvs1>;
 			synaptics,reset-gpio = <&msmgpio 16 0x00>;
 			synaptics,irq-gpio = <&msmgpio 17 0x2008>;
-			synaptics,fw-image-name = "PR1468813.img";
 			synaptics,button-map = <139 102 158>;
 			synaptics,i2c-pull-up;
 			synaptics,power-down;
-			synaptics,disable-gpios;
 		};
 	};
 
@@ -41,14 +45,11 @@
 			reg = <0x0e>;
 			qcom,irq-gpio = <&msmgpio 21 0x00>;
 			qcom,dis-gpio = <&msmgpio 20 0x00>;
-			qcom,clk-src = "BBCLK2";
-			qcom,clk-en-gpio = <&msmgpio 0 0x00>;
 			interrupt-parent = <&msmgpio>;
 			interrupts = <21 0>;
 			qcom,clk-gpio = <&pm8226_gpios 3 0>;
 		};
 	};
-
 	gpio_keys {
 		compatible = "gpio-keys";
 		input-name = "gpio-keys";
@@ -100,46 +101,57 @@
 			"LDO_H", "MCLK",
 			"SPK_OUT", "MCLK",
 			"SPK_OUT", "EXT_VDD_SPKR",
-			"AMIC1", "MIC BIAS1 Internal1",
-			"MIC BIAS1 Internal1", "Handset Mic",
-			"AMIC2", "MIC BIAS2 External",
-			"MIC BIAS2 External", "Headset Mic",
-			"AMIC4", "MIC BIAS2 External",
-			"MIC BIAS2 External", "ANCRight Headset Mic",
-			"AMIC5", "MIC BIAS2 External",
-			"MIC BIAS2 External", "ANCLeft Headset Mic",
-			"DMIC1", "MIC BIAS1 External",
-			"MIC BIAS1 External", "Digital Mic1",
-			"DMIC2", "MIC BIAS1 External",
-			"MIC BIAS1 External", "Digital Mic2",
-			"DMIC3", "MIC BIAS3 External",
-			"MIC BIAS3 External", "Digital Mic3",
-			"DMIC4", "MIC BIAS3 External",
-			"MIC BIAS3 External", "Digital Mic4";
-
-		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
-		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;
-		qcom,headset-jack-type-NC;
-		qcom,mbhc-audio-jack-type = "6-pole-jack";
-	};
-
-	sound-9302 {
-		qcom,audio-routing =
-			"RX_BIAS", "MCLK",
-			"LDO_H", "MCLK",
-			"SPK_OUT", "MCLK",
-			"SPK_OUT", "EXT_VDD_SPKR",
 			"AMIC1", "MIC BIAS1 External",
 			"MIC BIAS1 External", "Handset Mic",
 			"AMIC2", "MIC BIAS2 External",
 			"MIC BIAS2 External", "Headset Mic",
 			"AMIC3", "MIC BIAS1 External",
-			"MIC BIAS1 External", "Handset Mic";
+			"MIC BIAS1 External", "ANCRight Headset Mic",
+			"AMIC4", "MIC BIAS2 External",
+			"MIC BIAS2 External", "ANCLeft Headset Mic";
 
 		qcom,cdc-mclk-gpios = <&pm8226_gpios 1 0>;
 		qcom,cdc-vdd-spkr-gpios = <&pm8226_gpios 2 0>;
-		qcom,headset-jack-type-NC;
 	};
+};
+
+&usb_otg {
+	#address-cells = <0>;
+	interrupt-parent = <&usb_otg>;
+	interrupts = <0 1 2>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0xffffffff>;
+	interrupt-map = <0 &intc 0 134 0
+			1 &intc 0 140 0
+			2 &spmi_bus 0x0 0x0 0x9 0x0>;
+	interrupt-names = "core_irq", "async_irq", "pmic_id_irq";
+
+	qcom,hsusb-otg-mode = <3>;
+	vbus_otg-supply = <&usb_otg_sw>;
+};
+
+&sdcc1 {
+	vdd-supply = <&pm8226_l17>;
+	qcom,vdd-voltage-level = <2950000 2950000>;
+	qcom,vdd-current-level = <800 500000>;
+
+	vdd-io-supply = <&pm8226_l6>;
+	qcom,vdd-io-always-on;
+	qcom,vdd-io-voltage-level = <1800000 1800000>;
+	qcom,vdd-io-current-level = <250 154000>;
+
+	qcom,pad-pull-on = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-pull-off = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-drv-on = <0x4 0x4 0x4>; /* 10mA, 10mA, 10mA */
+	qcom,pad-drv-off = <0x0 0x0 0x0>; /* 2mA, 2mA, 2mA */
+
+	qcom,clk-rates = <400000 25000000 50000000 100000000 200000000>;
+	qcom,sup-voltages = <2950 2950>;
+
+	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+	qcom,nonremovable;
+
+	status = "disabled";
 };
 
 &sdhc_1 {
@@ -152,12 +164,48 @@
 	qcom,vdd-io-voltage-level = <1800000 1800000>;
 	qcom,vdd-io-current-level = <250 154000>;
 
+	qcom,pad-pull-on = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-pull-off = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-drv-on = <0x4 0x4 0x4>; /* 10mA, 10mA, 10mA */
+	qcom,pad-drv-off = <0x0 0x0 0x0>; /* 2mA, 2mA, 2mA */
 
 	qcom,clk-rates = <400000 25000000 50000000 100000000 200000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	qcom,nonremovable;
 
 	status = "ok";
+};
+
+&sdcc2 {
+	vdd-supply = <&pm8226_l18>;
+	qcom,vdd-voltage-level = <2950000 2950000>;
+	qcom,vdd-current-level = <9000 800000>;
+
+	vdd-io-supply = <&pm8226_l21>;
+	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	qcom,vdd-io-current-level = <6 22000>;
+
+	qcom,pad-pull-on = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-pull-off = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-drv-on = <0x4 0x4 0x4>; /* 10mA, 10mA, 10mA */
+	qcom,pad-drv-off = <0x0 0x0 0x0>; /* 2mA, 2mA, 2mA */
+
+	qcom,clk-rates = <400000 25000000 50000000 100000000 200000000>;
+	qcom,sup-voltages = <2950 2950>;
+
+	qcom,xpc;
+	qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
+	qcom,current-limit = <600>; #address-cells = <0>; interrupt-parent = <&sdcc2>;
+	interrupts = <0 1 2>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0xffffffff>;
+	interrupt-map = <0 &intc 0 125 0
+			1 &intc 0 220 0
+			2 &msmgpio 38 0x3>;
+	interrupt-names = "core_irq", "bam_irq", "status_irq";
+	cd-gpios = <&msmgpio 38 0x1>;
+
+	status = "disabled";
 };
 
 &sdhc_2 {
@@ -169,6 +217,10 @@
 	qcom,vdd-io-voltage-level = <1800000 2950000>;
 	qcom,vdd-io-current-level = <6 22000>;
 
+	qcom,pad-pull-on = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-pull-off = <0x0 0x3 0x3>; /* no-pull, pull-up, pull-up */
+	qcom,pad-drv-on = <0x4 0x4 0x4>; /* 10mA, 10mA, 10mA */
+	qcom,pad-drv-off = <0x0 0x0 0x0>; /* 2mA, 2mA, 2mA */
 
 	qcom,clk-rates = <400000 25000000 50000000 100000000 200000000>;
 
@@ -184,11 +236,6 @@
 	cd-gpios = <&msmgpio 38 0x1>;
 
 	status = "ok";
-};
-
-&sdhc_3 {
-	qcom,sup-voltages = <1800 1800>;
-	status = "disabled";
 };
 
 &spmi_bus {
@@ -214,7 +261,7 @@
 			qcom,led_mpp_4 {
 				label = "mpp";
 				linux,name = "green";
-				linux,default-trigger = "battery-full";
+				linux,default-trigger = "none";
 				qcom,default-state = "off";
 				qcom,max-current = <40>;
 				qcom,current-setting = <5>;
@@ -223,7 +270,7 @@
 				qcom,pwm-us = <1000>;
 				qcom,source-sel = <8>;
 				qcom,mode-ctrl = <0x60>;
-				pwms = <&pm8226_pwm_1 0 0>;
+				qcom,pwm-channel = <0>;
 				qcom,start-idx = <1>;
 				qcom,ramp-step-ms = <120>;
 				qcom,duty-pcts = [00 00 00 00 00
@@ -240,7 +287,7 @@
 			qcom,led_mpp_6 {
 				label = "mpp";
 				linux,name = "red";
-				linux,default-trigger = "battery-charging";
+				linux,default-trigger = "none";
 				qcom,default-state = "off";
 				qcom,max-current = <40>;
 				qcom,current-setting = <5>;
@@ -249,7 +296,7 @@
 				qcom,pwm-us = <1000>;
 				qcom,mode-ctrl = <0x60>;
 				qcom,source-sel = <10>;
-				pwms = <&pm8226_pwm_6 0 0>;
+				qcom,pwm-channel = <5>;
 				qcom,start-idx = <1>;
 				qcom,ramp-step-ms = <120>;
 				qcom,duty-pcts = [00 00 00 00 00
@@ -263,6 +310,10 @@
 	};
 
 	qcom,pm8226@1 {
+                qcom,leds@d300 {
+                        status = "okay";
+                };
+
 		qcom,leds@d800 {
 			status = "okay";
 			qcom,wled_0 {
@@ -281,12 +332,6 @@
 				qcom,num-strings = <1>;
 				qcom,id = <0>;
 			};
-		};
-
-		qcom,vibrator@c000 {
-			status = "okay";
-			qcom,vib-timeout-ms = <15000>;
-			qcom,vib-vtg-level-mV = <3100>;
 		};
 	};
 };
@@ -375,15 +420,6 @@
 	};
 };
 
-&pm8226_chg {
-	qcom,charging-disabled;
-	qcom,use-default-batt-values;
-
-	qcom,bat-if@1200 {
-		status = "disabled";
-	};
-};
-
 &pm8226_vadc {
 	chan@14 {
 		label = "pa_therm0";
@@ -408,18 +444,20 @@
 	};
 };
 
-&mdss_mdp {
-	qcom,mdss-pref-prim-intf = "dsi";
+&pm8226_bms {
+	status = "ok";
 };
 
-&mdss_dsi0 {
-	qcom,dsi-pref-prim-pan = <&dsi_nt35590_720_vid>;
+&pm8226_chg {
+	qcom,charging-disabled;
 };
 
-&dsi_nt35590_720_vid {
-	qcom,cont-splash-enabled;
+&usb_otg_sw {
+	status = "okay";
 };
 
-&dsi_nt35590_720_cmd {
-	qcom,cont-splash-enabled;
+&slim_msm {
+	tapan_codec {
+		qcom,cdc-micbias1-ext-cap;
+	};
 };
