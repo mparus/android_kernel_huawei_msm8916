@@ -6,6 +6,10 @@
 	        nfc,i2c-freq = "400k";
 	        nfc,chip-type = "NXPPN547";
 	        nfc,dev-type = "g760l01";
+            	nfc_nxp_conf_name = "libnfc-nxp.conf";
+            	nfc_brcm_conf_name = "libnfc-brcm.conf";
+            	nfc_card_num = <0x2>;
+            	nfc_chip_type = "pn547";
 	        status = "ok";
         };
 };
@@ -37,4 +41,3 @@
 		};
 	};
 };
-
