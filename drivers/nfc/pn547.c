@@ -1,4 +1,5 @@
-/*
+/* Copyright (C) 2010 NXP Semiconductors
+ * Copyright (C) 2016 @surdu_petru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-
+#include <linux/async.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -39,7 +40,6 @@
 
 #include <linux/regulator/consumer.h>
 #include <linux/miscdevice.h>
-//#include <mach/gpiomux.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/time.h>
@@ -50,14 +50,6 @@
 #include "pn547.h"
 #include <linux/wakelock.h>
 
-#ifdef CONFIG_HUAWEI_HW_DEV_DCT
-#include <linux/hw_dev_dec.h>
-#endif
-
-#ifdef CONFIG_HUAWEI_DSM
-#include <linux/dsm_pub.h>
-#include <linux/errno.h>
-#endif
 #define _read_sample_test_size			40
 #define NFC_TRY_NUM 3
 #define UICC_SUPPORT_CARD_EMULATION (1<<0)
@@ -95,136 +87,12 @@ struct pn547_dev	{
 	unsigned int 		firm_gpio;
 	unsigned int		irq_gpio;
 	unsigned int		clk_req_gpio;
-	bool				irq_enabled;
+	bool			irq_enabled;
 	spinlock_t		irq_enabled_lock;
 	bool		       	do_reading;
 	struct wake_lock   wl;
 	bool cancel_read;
 };
-
-#ifdef CONFIG_HUAWEI_DSM
-/*record error code for dsm report later*/
-static int dsm_nfc_write_error_code = 0; 
-static int dsm_nfc_read_error_code = 0; 
-
-/*Error code from user space*/
-#define NFC_WRITE_ERROR	                 1
-#define NFC_READ_ERROR                        2
-#define NFC_FW_DOWNLOAD_ERROR        3
-#define NFC_HAL_OPEN_FAILED	          4
-#define NFC_POST_INIT_FAILED               5
-#define NFC_NFCC_TRANSPORT                 6
-#define NFC_NFCC_CMD_TIMEOUT             7
-
-/*dsm debug variable, use the same value as error no.*/
-static int dsm_nfc_debug = 0; 
-module_param(dsm_nfc_debug, int, S_IRUGO|S_IWUSR);
-
-static struct dsm_dev dsm_nfc = {
-	.name = CLIENT_NAME_NFC,
-	.fops = NULL,
-	.buff_size = 1024,
-};
-
-static struct dsm_client *nfc_dclient = NULL;
-
-
-/*FUNCTION: nfc_dsm_report
-  *DESCRIPTION: nfc error report for dsm
-  *Parameters
-  * int error_no : error no
-  * int error_code: error code
-  *RETURN VALUE
-  * none */
-static void nfc_dsm_report(int error_no,int error_code)
-{
-	int ret = 0;
-
-	if(!nfc_dclient){
-	      pr_err("%s: nfc_dclient is NULL! error no:%d\n", __func__,error_no);
-	      return;
-	}
-
-	if(dsm_nfc_debug){
-	      pr_info("%s: its debug report, dsm_nfc_debug=%d \n", __func__, dsm_nfc_debug);
-	}
-
-	pr_info("%s: error_no=%d, error_code=%d \n", __func__, error_no, error_code);
-
-	/*apply for dsm report buffer*/
-	if(dsm_client_ocuppy(nfc_dclient)){
-	      pr_err("%s: buffer is busy! error no:%d\n", __func__,error_no);
-	      return;
-	}
-
-	switch(error_no){
-	      /*Normal R/W*/
-	      case DSM_NFC_I2C_WRITE_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_send returned %d \n", error_code);
-		  	break;
-	      case DSM_NFC_I2C_WRITE_EOPNOTSUPP_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_send returned %d. Operation not supported on transport endpoint \n", error_code);
-		  	break;
-	      case DSM_NFC_I2C_WRITE_EREMOTEIO_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_send returned %d. Remote I/O error \n", error_code);
-		  	break;
-	      case DSM_NFC_I2C_READ_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_recv returned %d \n", error_code);
-		  	break;	
-	      case DSM_NFC_I2C_READ_EOPNOTSUPP_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_recv returned %d. Operation not supported on transport endpoint \n", error_code);
-		  	break;
-	      case DSM_NFC_I2C_READ_EREMOTEIO_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "i2c_master_recv returned %d. Remote I/O error \n", error_code);
-		  	break;
-	      case DSM_NFC_SIM_CHECK_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC SIM Check failed, ret=%d \n", error_code);
-		  	break;
-	      case DSM_NFC_FW_DOWNLOAD_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC FW Download failed, ret=%d \n", error_code);
-		  	break;
-	      case DSM_NFC_HAL_OPEN_FAILED_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC Hal Open failed, ret=%d \n", error_code);
-		  	break;
-	      case DSM_NFC_POST_INIT_FAILED_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC PostInit failed, ret=%d \n", error_code);
-		  	break;
-	      case DSM_NFC_NFCC_TRANSPORT_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC transport failed, ret=%d \n", error_code);
-		  	break;
-	      case DSM_NFC_NFCC_CMD_TIMEOUT_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "NFC cmd timeout, ret=%d \n", error_code);
-		  	break;
-	      /*Check Write*/	
-	      case DSM_NFC_CHECK_I2C_WRITE_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "CHECK_i2c_master_send returned %d \n", error_code);
-		  	break;
-	      case DSM_NFC_CHECK_I2C_WRITE_EOPNOTSUPP_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "CHECK_i2c_master_send returned %d. Operation not supported on transport endpoint \n", error_code);
-		  	break;
-	      case DSM_NFC_CHECK_I2C_WRITE_EREMOTEIO_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "CHECK_i2c_master_send returned %d. Remote I/O error \n", error_code);
-		  	break;
-	      /*CLK*/	
-	      case DSM_NFC_CLK_ENABLE_ERROR_NO:
-		  	ret = dsm_client_record(nfc_dclient, "Enable NFC clk failed, ret=%d \n", error_code);
-		  	break;
-	      default:
-		  	pr_err("%s: Unknown error no:%d !\n", __func__,error_no);
-			break;
-	}
-	
-	if(!ret){
-	      pr_err("%s: no need report! error no:%d\n", __func__,error_no);
-	      return;
-	}
-
-	/*call dsm report interface*/
-	dsm_client_notify(nfc_dclient, error_no); 
-
-	return;
-}
-#endif
 
 /*FUNCTION: get_nfc_config_name
   *DESCRIPTION: get nfc configure files' name from device tree system, save result in global variable
@@ -423,21 +291,6 @@ static ssize_t pn547_dev_read(struct file *filp, char __user *buf,
 
 	mutex_unlock(&pn547_dev->read_mutex);
 
-#ifdef CONFIG_HUAWEI_DSM
-	if(ret != (int)count || dsm_nfc_debug){	
-		/*save error code for later dsm report*/
-		dsm_nfc_read_error_code = ret;
-
-		/*just for debug*/
-		if(dsm_nfc_debug >= DSM_NFC_I2C_READ_ERROR_NO 
-		   && dsm_nfc_debug <= DSM_NFC_I2C_READ_EREMOTEIO_ERROR_NO){
-			pr_err("%s : dsm_nfc_debug = %d\n", __func__, dsm_nfc_debug);
-			dsm_nfc_read_error_code = dsm_nfc_debug;
-			return -EIO;
-		}
-	}
-#endif
-
 	if (ret < 0){
 		pr_err("%s: PN547 i2c_master_recv returned %d\n", __func__, ret);
 		return ret;
@@ -504,21 +357,6 @@ static ssize_t pn547_dev_write(struct file *filp, const char __user *buf,
 			continue;
 		}
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	if(ret != (int)count || dsm_nfc_debug){
-		/*save error code for later dsm report*/
-		dsm_nfc_write_error_code = ret;
-
-		/*just for debug*/
-		if(dsm_nfc_debug >= DSM_NFC_I2C_WRITE_ERROR_NO 
-		   && dsm_nfc_debug <= DSM_NFC_I2C_WRITE_EREMOTEIO_ERROR_NO){
-			pr_err("%s : dsm_nfc_debug = %d\n", __func__, dsm_nfc_debug);
-			dsm_nfc_write_error_code = dsm_nfc_debug;
-			return -EIO;
-		}
-	}
-#endif
 
 	if (ret != count){
 		pr_err("%s : i2c_master_send returned %d\n", __func__, ret);
@@ -889,12 +727,6 @@ static ssize_t nfc_sim_status_show(struct device *dev, struct device_attribute *
 		break;
 	}
 
-#ifdef CONFIG_HUAWEI_DSM
-	if (status < 0)	{
-		nfc_dsm_report(DSM_NFC_SIM_CHECK_ERROR_NO,status);
-	}
-#endif
-	
 	pr_info("%s: status=%d\n", __func__,status);
 	return (ssize_t)(snprintf(buf, MAX_ATTRIBUTE_BUFFER_SIZE-1,"%d\n", status));
 }
@@ -1108,101 +940,6 @@ static ssize_t nfc_chip_type_show(struct device *dev, struct device_attribute *a
     return (ssize_t)(snprintf(buf,  MAX_ATTRIBUTE_BUFFER_SIZE-1, "%s", nfc_chip_type));
 }
 
-#ifdef CONFIG_HUAWEI_DSM
-/*FUNCTION: nfc_dmd_notify_show
-  *DESCRIPTION: nfc_dmd_notify_show, show i2c w/r error code record.  
-  *Parameters
-  * struct device *dev:device structure
-  * struct device_attribute *attr:device attribute
-  * const char *buf:user buffer
-  *RETURN VALUE
-  * ssize_t:  result */
-static ssize_t nfc_dmd_notify_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return (ssize_t)(snprintf(buf,  MAX_ATTRIBUTE_BUFFER_SIZE-1, "w:%d,r:%d", dsm_nfc_write_error_code,dsm_nfc_read_error_code));
-}
-/*FUNCTION: nfc_dmd_notify_store
-  *DESCRIPTION: nfc_dmd_notify_store, report nfc dmd notify from user space.  
-  *Parameters
-  * struct device *dev:device structure
-  * struct device_attribute *attr:device attribute
-  * const char *buf:user buffer
-  * size_t count:data count
-  *RETURN VALUE
-  * ssize_t:  result */
-static ssize_t nfc_dmd_notify_store(struct device *dev, struct device_attribute *attr,
-             const char *buf, size_t count)
-{
-	int val = 0;
-
-       if(NULL == buf){
-	   	pr_err("%s: input para buf is NULL!\n", __func__);
-		return -EINVAL;
-       }
-
-	pr_err("%s: dsm report op:%s\n", __func__, buf);
-
-	if (1 != sscanf(buf, "%2d", &val)){
-		pr_err("%s : get buf failed: %s\n", __func__,buf);
-		return -EINVAL;
-	}
-
-	switch(val){
-	      case NFC_WRITE_ERROR:
-		  	{
-				/* Notify Pn547 write error DMD information */
-				if(-EOPNOTSUPP == dsm_nfc_write_error_code){
-					/*i2c op not support error*/
-					nfc_dsm_report(DSM_NFC_I2C_WRITE_EOPNOTSUPP_ERROR_NO,dsm_nfc_write_error_code);	
-				}else if(-EREMOTEIO == dsm_nfc_write_error_code){
-					/*remote i2c device error*/
-					nfc_dsm_report(DSM_NFC_I2C_WRITE_EREMOTEIO_ERROR_NO,dsm_nfc_write_error_code);	
-				}else{
-					nfc_dsm_report(DSM_NFC_I2C_WRITE_ERROR_NO,dsm_nfc_write_error_code);
-				}	
-				dsm_nfc_write_error_code = 0;
-		  	}
-		  	break;
-	      case NFC_READ_ERROR:
-		  	{
-				/* Notify Pn547 read error DMD information */
-				if(-EOPNOTSUPP == dsm_nfc_read_error_code){
-					/*i2c op not support error*/
-					nfc_dsm_report(DSM_NFC_I2C_READ_EOPNOTSUPP_ERROR_NO,dsm_nfc_read_error_code);	
-				}else if(-EREMOTEIO == dsm_nfc_read_error_code){
-					/*remote i2c device error*/
-					nfc_dsm_report(DSM_NFC_I2C_READ_EREMOTEIO_ERROR_NO,dsm_nfc_read_error_code);	
-				}else{
-					nfc_dsm_report(DSM_NFC_I2C_READ_ERROR_NO,dsm_nfc_read_error_code);
-				}			
-				dsm_nfc_read_error_code = 0;
-			}
-		  	break;
-	      case NFC_FW_DOWNLOAD_ERROR:
-		  	nfc_dsm_report(DSM_NFC_FW_DOWNLOAD_ERROR_NO,DSM_NFC_FW_DOWNLOAD_ERROR_NO);	
-		  	break;
-	      case NFC_HAL_OPEN_FAILED:
-		  	nfc_dsm_report(DSM_NFC_HAL_OPEN_FAILED_ERROR_NO,DSM_NFC_HAL_OPEN_FAILED_ERROR_NO);
-		  	break;	
-	      case NFC_POST_INIT_FAILED:
-		  	nfc_dsm_report(DSM_NFC_POST_INIT_FAILED_ERROR_NO,DSM_NFC_POST_INIT_FAILED_ERROR_NO);
-		  	break;
-	      case NFC_NFCC_TRANSPORT:
-		  	nfc_dsm_report(DSM_NFC_NFCC_TRANSPORT_ERROR_NO,DSM_NFC_NFCC_TRANSPORT_ERROR_NO);
-		  	break;
-	      case NFC_NFCC_CMD_TIMEOUT:
-		  	nfc_dsm_report(DSM_NFC_NFCC_CMD_TIMEOUT_ERROR_NO,DSM_NFC_NFCC_CMD_TIMEOUT_ERROR_NO);
-		  	break;	      
-	      default:
-		  	pr_err("%s : unknow error code: %d\n", __func__,val);
-			break;
-	}
-	
-	return count;
-
-}
-#endif
-
 /*register device node to communication with user space*/
 static struct device_attribute pn547_attr[] ={
 	__ATTR(nfc_fwupdate, 0664, nfc_fwupdate_show, nfc_fwupdate_store),
@@ -1212,12 +949,8 @@ static struct device_attribute pn547_attr[] ={
 	__ATTR(nfc_sim_status, 0444, nfc_sim_status_show, NULL),
 	__ATTR(rd_nfc_sim_status, 0444, rd_nfc_sim_status_show, NULL),
 	__ATTR(nfc_enable_status, 0664, nfc_enable_status_show, nfc_enable_status_store),
-	//__ATTR(nfc_check_lcd_status, 0444, nfc_check_lcd_status_show, NULL),
 	__ATTR(nfc_card_num, 0444, nfc_card_num_show, NULL),
 	__ATTR(nfc_chip_type, 0444, nfc_chip_type_show, NULL),
-#ifdef CONFIG_HUAWEI_DSM
-	__ATTR(nfc_dmd_notify, 0664, nfc_dmd_notify_show, nfc_dmd_notify_store),
-#endif
 };
 
 /*FUNCTION: create_sysfs_interfaces
@@ -1309,22 +1042,6 @@ static int check_pn547(struct i2c_client *client, struct  pn547_dev *pdev)
 			break;
 		}
 	}
-
-#ifdef CONFIG_HUAWEI_DSM
-	if(ret < 0 || dsm_nfc_debug){		
-		if(-EOPNOTSUPP==ret ||DSM_NFC_CHECK_I2C_WRITE_EOPNOTSUPP_ERROR_NO == dsm_nfc_debug){
-			nfc_dsm_report(DSM_NFC_CHECK_I2C_WRITE_EOPNOTSUPP_ERROR_NO,ret);	
-		}else if(-EREMOTEIO==ret  ||DSM_NFC_CHECK_I2C_WRITE_EREMOTEIO_ERROR_NO == dsm_nfc_debug){
-			nfc_dsm_report(DSM_NFC_CHECK_I2C_WRITE_EREMOTEIO_ERROR_NO,ret);	
-		}else{
-		       if(ret < 0 || DSM_NFC_CHECK_I2C_WRITE_ERROR_NO == dsm_nfc_debug){
-		           nfc_dsm_report(DSM_NFC_CHECK_I2C_WRITE_ERROR_NO,ret);
-		       }
-		}
-
-		ret = -EIO;
-	}
-#endif
 
 	gpio_set_value(pdev->firm_gpio, 0);
 	gpio_set_value(pdev->ven_gpio, 0); 
@@ -1470,29 +1187,6 @@ static int pn547_parse_dt(struct device *dev,
 err:
 	return ret;
 }
-/*
-static struct gpiomux_setting nfc_irq_act = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv  = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-static struct gpiomux_setting nfc_irq_sus = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv  = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-static struct gpiomux_setting nfc_fwdl_act = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv  = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-static struct gpiomux_setting nfc_fwdl_sus = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv  = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-*/
-
 /*FUNCTION: pn547_gpio_request
   *DESCRIPTION: pn547_gpio_request, nfc gpio configuration
   *Parameters
@@ -1504,7 +1198,6 @@ static int pn547_gpio_request(struct device *dev,
 				struct pn547_i2c_platform_data *pdata)
 {
 	int ret;
-//	int gpio_config=0;
 
 	pr_info("%s : pn547_gpio_request enter\n", __func__);
 
@@ -1513,10 +1206,7 @@ static int pn547_gpio_request(struct device *dev,
 	if(ret){
 		goto err_irq;
 	}
-//	msm_gpiomux_write(pdata->irq_gpio,GPIOMUX_ACTIVE, &nfc_irq_act, NULL);
-//	msm_gpiomux_write(pdata->irq_gpio,GPIOMUX_SUSPENDED, &nfc_irq_sus, NULL);
-//	gpio_config = GPIO_CFG(pdata->irq_gpio, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA);
-//	gpio_tlmm_config(gpio_config, GPIO_CFG_ENABLE);
+
 	ret = gpio_direction_input(pdata->irq_gpio);
 	if(ret){
 		goto err_fwdl_en;
@@ -1527,10 +1217,7 @@ static int pn547_gpio_request(struct device *dev,
 	if(ret){
 		goto err_fwdl_en;
 	}
-//	msm_gpiomux_write(pdata->fwdl_en_gpio,GPIOMUX_ACTIVE, &nfc_fwdl_act, NULL);
-//	msm_gpiomux_write(pdata->fwdl_en_gpio,GPIOMUX_SUSPENDED, &nfc_fwdl_sus, NULL);
-//	gpio_config = GPIO_CFG(pdata->fwdl_en_gpio, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA);
-//	gpio_tlmm_config(gpio_config, GPIO_CFG_ENABLE);
+
 	ret = gpio_direction_output(pdata->fwdl_en_gpio,0);
 	if(ret){
 		goto err_ven;
@@ -1601,12 +1288,6 @@ static int pn547_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "%s begin:\n", __func__);
 
-#ifdef CONFIG_HUAWEI_DSM
-	if(!nfc_dclient){
-	   nfc_dclient = dsm_register_client (&dsm_nfc);
-	}
-#endif
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s : need I2C_FUNC_I2C\n", __func__);
 		return  -ENODEV;
@@ -1650,17 +1331,8 @@ static int pn547_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev, "failed to enable clk: %d\n", ret);
 
-#ifdef CONFIG_HUAWEI_DSM
-		nfc_dsm_report(DSM_NFC_CLK_ENABLE_ERROR_NO,ret);
-#endif
 		goto err_gpio_request;
 	}
-#ifdef CONFIG_HUAWEI_DSM
-	if (DSM_NFC_CLK_ENABLE_ERROR_NO == dsm_nfc_debug) {
-		nfc_dsm_report(DSM_NFC_CLK_ENABLE_ERROR_NO,ret);
-	}
-#endif
-
 
 	/*config nfc gpio*/
 	ret = pn547_gpio_request(&client->dev, platform_data);
@@ -1704,7 +1376,7 @@ static int pn547_probe(struct i2c_client *client,
 	init_waitqueue_head(&pn547_dev->read_wq);
 	mutex_init(&pn547_dev->read_mutex);
 	spin_lock_init(&pn547_dev->irq_enabled_lock);
-       wake_lock_init(&pn547_dev->wl,WAKE_LOCK_SUSPEND,"nfc_locker");
+        wake_lock_init(&pn547_dev->wl,WAKE_LOCK_SUSPEND,"nfc_locker");
 	pn547_dev->pn547_device.minor = MISC_DYNAMIC_MINOR;
 	pn547_dev->pn547_device.name = "pn544";
 	pn547_dev->pn547_device.fops = &pn547_dev_fops;
@@ -1731,11 +1403,6 @@ static int pn547_probe(struct i2c_client *client,
 	}
 	pn547_disable_irq(pn547_dev);
 	i2c_set_clientdata(client, pn547_dev);
-
-#ifdef CONFIG_HUAWEI_HW_DEV_DCT
-	/* detect current device successful, set the flag as present */
-	set_hw_dev_flag(DEV_I2C_NFC);
-#endif
 
 	/* get and save configure name*/
 	get_nfc_config_name();
@@ -1798,7 +1465,7 @@ static int pn547_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pn547_id[] = {
-	{ "pn547", 0 },
+	{ PN547_DRV_NAME, 0 },
 	{ }
 };
 
@@ -1813,7 +1480,7 @@ static struct i2c_driver pn547_driver = {
 	.remove		= pn547_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "pn547",
+		.name	= PN547_DRV_NAME,
 		.of_match_table	= pn547_match_table,
 	},
 };
@@ -1822,10 +1489,25 @@ static struct i2c_driver pn547_driver = {
  * module load/unload record keeping
  */
 
+static void async_dev_init(void *data, async_cookie_t cookie)
+{
+    int ret = 0;
+    pr_info(PN547_DRV_NAME ": Start async init\n");
+
+    ret = i2c_add_driver(&pn547_driver);
+    if (ret < 0) {
+        pr_err("[NFC]failed to i2c_add_driver\n");
+    }
+    pr_info(PN547_DRV_NAME ": Loading PN547 driver Success! \n");
+    return;
+}
+
 static int __init pn547_dev_init(void)
 {
-	pr_info("### %s begin! \n",__func__);
-	return i2c_add_driver(&pn547_driver);
+    pr_info("Loading PN547 driver\n");
+    async_schedule(async_dev_init, NULL);
+
+    return 0;
 }
 module_init(pn547_dev_init);
 

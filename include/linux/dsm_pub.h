@@ -324,6 +324,7 @@ enum DSM_KEYS_TYPE{
 #define DSM_NFC_POST_INIT_FAILED_ERROR_NO                               (DSM_NFC_ERROR_NO + 18)
 #define DSM_NFC_NFCC_TRANSPORT_ERROR_NO                                 (DSM_NFC_ERROR_NO + 19)
 #define DSM_NFC_NFCC_CMD_TIMEOUT_ERROR_NO                               (DSM_NFC_ERROR_NO + 20)
+#define DSM_NFC_SIM_CHECK_ERROR_NO					(DSM_NFC_ERROR_NO + 21)
 struct dsm_client_ops{
 	int (*poll_state) (void);
 	int (*dump_func) (int type, void *buff, int size);

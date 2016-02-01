@@ -80,8 +80,6 @@ const char *get_nfc_feature_type(nfc_feature feature_type)
     return nfc_feature_type;
 }
 
-
-
 static int devtype_proc_show(struct seq_file *m, void *v)
 {
 	const char *nfc_device_type = NULL;
@@ -104,7 +102,6 @@ static const struct file_operations devtype_proc_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
 
 static int chiptype_proc_show(struct seq_file *m, void *v)
 {
@@ -191,8 +188,6 @@ static void __exit nfc_adaptive_exit(void)
     remove_proc_entry("devtype", nfc_dir);
     remove_proc_entry("nfc_feature", 0);
 }
-
-
 
 module_init(nfc_adaptive_init);
 module_exit(nfc_adaptive_exit);
